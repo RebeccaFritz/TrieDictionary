@@ -14,38 +14,32 @@ public class TrieRF implements Set<String>, Iterable<String> {
     int len = 0;
 
     public void add(String s) {
-        root = addRecursion(s, root, 0, s.length());
+        root = addRecursion(s, root);
     }
 
-    private Tnode addRecursion(String s, Tnode tn, int lets, int sLen) {
+    private Tnode addRecursion(String s, Tnode tn) { // lets: index of the letter
         String l = s.substring(0, 1);
         
         boolean wordEnd = false;
-        if( lets == sLen-1 ) { // last letter in the word
+        if( s.length() == 1 ) { // last letter in the word
             wordEnd = true;
         }
 
         if( tn == null ) {
-            Tnode node = new Tnode();
-            node.l = l;
-            node.rsibling = null;
-            node.lmchild = null;
-            node.wordEnd = wordEnd;
-
-            if( ! wordEnd ) {
-                tn.lmchild = addRecursion(s.substring(1), node.lmchild, ++lets, sLen);
-            } else {
-                return node;
-            }
-        }
-
-        if( tn.l.equals(l) && ! wordEnd ) {
-            tn.lmchild = addRecursion(s.substring(1), tn.lmchild, ++lets, sLen);
+            tn = new Tnode();
+            tn.l = l;
+            tn.rsibling = null;
+            tn.lmchild = null;
+            tn.wordEnd = wordEnd;
+        } 
+        
+        if ( tn.l.equals(l) && ! wordEnd ) {
+            tn.lmchild = addRecursion(s.substring(1), tn.lmchild);
         } else if( tn.l.equals(l) && wordEnd ) {
             tn.wordEnd = wordEnd;
             len++;
         } else {
-            tn.rsibling = addRecursion(s, tn.rsibling, lets, sLen);
+            tn.rsibling = addRecursion(s, tn.rsibling);
         }
 
         return tn;
@@ -110,35 +104,67 @@ public class TrieRF implements Set<String>, Iterable<String> {
     }
 
     class TRFIterator implements Iterator<String> {
-        Stack<Tnode> iterStack = new Stack<>();
+        class Pair {
+            Tnode tn;
+            String s;
+        }
 
-        public TRFIterator() {
+        Stack<Pair> tnStack = new Stack<>();
+        String nextString = null;
+
+        private TRFIterator() {
+            Pair rootPair = new Pair();
+            rootPair.tn = root;
+            rootPair.s = "";
+
             if( root != null ) {
-                iterStack.push(root);
-            }
-        }
-
-        public String next() { 
-            return next(iterStack.pop(), "");
-        }
-
-        private String next(Tnode tn, String s) {
-            while(!tn.wordEnd) {
-
-                if( tn.rsibling != null ) {
-                    next(tn.rsibling, s);
-                }
-
-                if( tn.lmchild != null ) {
-                    next(tn.lmchild, s.concat(tn.l));
-                }
+                tnStack.push(rootPair);
             }
 
-            return s.concat(tn.l);
+            nextHelper();
+        }
+
+        public String next() {
+            return nextString;
+        }
+
+        private String nextHelper() {
+            Pair pair = tnStack.pop();
+
+            if( pair.tn.rsibling != null ) {
+                Pair newPair = new Pair();
+                newPair.tn = pair.tn.rsibling;
+                newPair.s = pair.s;
+                tnStack.push(newPair);
+            }
+
+            if( pair.tn.lmchild != null ) {
+                Pair newPair = new Pair();
+                newPair.tn = pair.tn.lmchild;
+                newPair.s = pair.s.concat(pair.tn.l);
+                tnStack.push(newPair);
+            }
+
+            if( pair.tn.wordEnd ) {
+                return pair.s.concat(pair.tn.l);
+            } else { // pair.tn.wordEnd has no children or siblings and is false
+                return null;
+            }
         }
 
         public boolean hasNext() {
-            return ! iterStack.empty();
+            if( ! tnStack.empty() ) {
+
+                nextString = nextHelper();
+
+                while( nextString == null ) {
+                    nextString = nextHelper();
+                }
+
+                return true;
+            }
+
+            return false;
         }
     }
 
